@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Analytics Dashboard | PySpark & Databricks</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #4ade80;
+            --accent-amber: #fbbf24;
+            --accent-red: #f87171;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+            margin-bottom: 28px;
+        }
+
+        .header h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .kpi-title {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .kpi-subtext {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .val-blue { color: var(--accent-blue); }
+        .val-red { color: var(--accent-red); }
+        .val-amber { color: var(--accent-amber); }
+        .val-green { color: var(--accent-green); }
+
+        /* Section Layout */
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title span {
+            color: var(--accent-blue);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+            gap: 24px;
+            margin-bottom: 36px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .chart-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .chart-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #ffffff;
+            display: block;
+        }
+
+        .chart-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+
+        /* KPI Tables */
+        .table-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 36px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #0f172a;
+            color: var(--accent-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Code block */
+        pre {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            overflow-x: auto;
+        }
+
+        .footer {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div>
+            <h1>Air Quality Analytics & KPI Executive Dashboard</h1>
+            <p class="subtitle">PySpark & Databricks Urban Environmental Monitoring Engine | UCI Dataset #360</p>
+        </div>
+        <div>
+            <span class="badge">PySpark 4.2.0 | Databricks Lakehouse</span>
+        </div>
+    </header>
+
+    <!-- Top KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Monitored Hours</div>
+            <div class="kpi-value val-blue">9,357</div>
+            <div class="kpi-subtext">1 Year Complete Field Test (Mar 2004 - Feb 2005)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Rush-Hour CO Surge Ratio</div>
+            <div class="kpi-value val-red">+78.8%</div>
+            <div class="kpi-subtext">3.29 mg/m³ (Peak) vs. 1.84 mg/m³ (Off-Peak)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Highest Sensor Accuracy</div>
+            <div class="kpi-value val-green">r = 0.9262</div>
+            <div class="kpi-subtext">PT08.S2 (Titania) vs True Benzene C6H6(GT)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">EU NO2 Threshold Violations</div>
+            <div class="kpi-value val-amber">386 Hours</div>
+            <div class="kpi-subtext">5.00% Exceedance Rate (&gt; 200 µg/m³ limit)</div>
+        </div>
+    </div>
+
+    <!-- Objective 1 -->
+    <div class="section-title">
+        <span>Objective 1:</span> Diurnal & Seasonal Temporal Pollution Dynamics (Commuter Traffic)
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>24-Hour Diurnal Multi-Pollutant Emissions Profile</h3>
+            <img src="diurnal_multi_pollutant.png" alt="Diurnal Multi-Pollutant Curve">
+            <p class="chart-description">
+                Illustrates bimodal peaks corresponding directly to commuter rush hours: 08:00–09:00 (morning ingress) and 18:00–20:00 (evening egress), where Benzene and Carbon Monoxide nearly double baseline levels.
+            </p>
+        </div>
+        <div class="chart-card">
+            <h3>Traffic Abatement Effect: Weekdays vs. Weekends</h3>
+            <img src="weekend_vs_weekday_comparison.png" alt="Weekday vs Weekend Bar Chart">
+            <p class="chart-description">
+                Averaged emissions demonstrate substantial reductions on weekends: CO drops 30.1% (from 2.36 to 1.65 mg/m³) and Benzene drops 35.3% (from 11.25 to 7.28 µg/m³), confirming primary vehicular origin.
+            </p>
+        </div>
+    </div>
+
+    <!-- Objective 2 -->
+    <div class="section-title">
+        <span>Objective 2:</span> Low-Cost Sensor Calibration & Environmental Drift Analysis
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>Sensor Calibration Curves & Pearson Correlation</h3>
+            <img src="sensor_calibration_correlation.png" alt="Sensor Calibration Scatter Plot">
+            <p class="chart-description">
+                Cross-correlation analysis demonstrates that the <strong>PT08.S2 (NMHC)</strong> sensor exhibits exceptional fidelity (r = 0.926) against certified Benzene analyzers, making it suitable for surrogate deployment. Conversely, <strong>PT08.S1</strong> shows cross-sensitivity with humidity (r = 0.418).
+            </p>
+        </div>
+        <div class="chart-card">
+            <h3>Temporal Pollution Heatmap (Day of Week vs. Hour of Day)</h3>
+            <img src="hourly_weekday_pollution_heatmap.png" alt="Hourly Pollution Heatmap">
+            <p class="chart-description">
+                Matrix heatmap highlighting severe Nitrogen Dioxide (NO2) exposure zones during Thursday and Friday evenings between 18:00 and 21:00, where atmospheric stagnation exacerbates exhaust concentrations.
+            </p>
+        </div>
+    </div>
+
+    <!-- Objective 3 -->
+    <div class="section-title">
+        <span>Objective 3:</span> Environmental Health Compliance & EU Regulatory Limit Violations
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>Monthly EU Limit Violations (Hourly NO2 &gt; 200 µg/m³)</h3>
+            <img src="regulatory_exceedances_monthly.png" alt="Monthly Regulatory Violations">
+            <p class="chart-description">
+                Seasonal analysis demonstrates high compliance in Spring and Summer, followed by severe winter inversion spikes in November (59 violation hours) and February (160 violation hours, 24.9% of all monitored hours).
+            </p>
+        </div>
+        <div class="chart-card">
+            <h3>EU Regulatory Compliance Summary Table</h3>
+            <div style="padding-top: 10px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Regulatory Standard</th>
+                            <th>EU Limit Value</th>
+                            <th>Total Valid Hours</th>
+                            <th>Exceedance Hours</th>
+                            <th>Violation Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>NO2 Hourly Exposure</strong></td>
+                            <td>200 µg/m³</td>
+                            <td>7,715</td>
+                            <td>386</td>
+                            <td><span style="color: var(--accent-red); font-weight: 600;">5.00%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>CO 8-Hour Maximum</strong></td>
+                            <td>10.0 mg/m³</td>
+                            <td>7,674</td>
+                            <td>5</td>
+                            <td><span style="color: var(--accent-green); font-weight: 600;">0.065%</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Benzene High Risk</strong></td>
+                            <td>&gt; 10 µg/m³</td>
+                            <td>8,991</td>
+                            <td>3,614</td>
+                            <td><span style="color: var(--accent-amber); font-weight: 600;">40.19%</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Databricks Lakeview Queries -->
+    <div class="section-title">
+        <span>Lakeview:</span> Databricks SQL Dashboard Query Snippet
+    </div>
+    <pre><code>-- Databricks SQL Query for Diurnal Rush Hour Aggregation Widget
+SELECT 
+    hour,
+    ROUND(AVG(co_gt), 2) AS avg_co_mg_m3,
+    ROUND(AVG(c6h6_gt), 2) AS avg_benzene_ug_m3,
+    ROUND(AVG(nox_gt), 2) AS avg_nox_ppb,
+    CASE WHEN hour IN (8, 9, 18, 19, 20) THEN 'Rush Hour' ELSE 'Off-Peak' END AS traffic_period
+FROM air_quality_curated
+WHERE co_gt IS NOT NULL
+GROUP BY hour
+ORDER BY hour;</code></pre>
+
+    <footer class="footer">
+        <p>Built with Apache Spark (PySpark 4.2.0) & Databricks Lakehouse Architecture | Open with VS Code or Web Browser</p>
+    </footer>
+
+</body>
+</html>
